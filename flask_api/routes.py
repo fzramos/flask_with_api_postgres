@@ -1,6 +1,16 @@
 from flask_api import app, db
-from flask_api.models import Patient, patient_schema, patients_schema
-from flask import jsonify, request, render_template
+from flask_api.models import Patient, patient_schema, patients_schema, User, check_password_hash
+from flask import jsonify, request, render_template, url_for, redirect
+
+# import for flask login
+from flask_login import login_required, login_user, current_user, logout_user
+
+# Import for PyJWT (Json Web Token)
+import jwt
+
+from flask_api.forms import UserForm, LoginForm
+
+
 
 # Endpoint for Creating patients
 @app.route('/patients/create', methods = ['POST'])
@@ -69,3 +79,48 @@ def delete_patients(id):
     result = patient_schema.dump(patient)
 
     return jsonify(result)
+
+@app.route('/')
+def home():
+    return render_template('home.html')
+
+@app.route('/users/register', methods = ['GET', 'POST'])
+def register():
+    form = UserForm()
+    if request.method == 'POST' and form.validate():
+        name = form.name.data
+        email = form.email.data
+        password = form.password.data
+
+        user = User(name, email, password)
+
+        db.session.add(user)
+        db.session.commit()
+
+        return redirect(url_for('login'))
+    return render_template('register.html', user_form = form)
+
+@app.route('/user/login', methods = ['GET', 'POST'])
+def login():
+    form = LoginForm()
+    email = form.email.data
+    password = form.password.data
+
+    logged_user = User.query.filter(User.email == email).first()
+    if logged_user and check_password_hash(logged_user.password, password):
+        login_user(logged_user)
+        return redirect(url_for('get_key'))
+    return render_template('login.html', login_form = form)
+
+@app.route('/users/getkey')
+def get_key():
+    #  as stated on jwt.io website, jwt's include encrypted data on 
+    # algo type, payload (info about user who owns key), secret key
+    token = jwt.encode({'public_id': current_user.id, 'email':current_user.email}, app.config['SECRET_KEY'])
+    user.token = token
+    
+    db.session.add(user)
+    db.session.commit()
+
+    results = token.decode('utf-8')
+    return render_template('token.html', token = results)

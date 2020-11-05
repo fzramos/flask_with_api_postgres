@@ -1,5 +1,16 @@
 from flask_api import app, db, ma, login_manager
 
+from datetime import datetime
+
+# Import package to create unique IDs for users
+import uuid
+
+# Import for Flask Login
+from flask_login import UserMixin
+
+# Import for Werkzeug Security
+from werkzeug.security import generate_password_hash, check_password_hash
+
 class Patient(db.Model):
     id = db.Column(db.Integer, primary_key = True)
     full_name = db.Column(db.String, nullable = False)
@@ -33,3 +44,32 @@ patient_schema = PatientSchema()
 
 patients_schema = PatientSchema(many = True)
 # if you give me info about many patients in a JSON format, use patients_schema object
+
+@login_manager.user_loader
+def load_user(user_id):
+    return User.query.get(user_id)
+
+
+class User(db.Model, UserMixin):
+    id = db.Column(db.String(200), primary_key = True)
+    name = db.Column(db.String(100), nullable = False)
+    email = db.Column(db.String(150))
+    password = db.Column(db.String(256), nullable = False)
+    token = db.Column(db.String(400))
+    date_created = db.Column(db.DateTime, nullable= False, default = datetime.utcnow)
+    token_refreshed = db.Column(db.Boolean, default = False)
+    date_refreshed = db.Column(db.DateTime)
+
+    def __init__(self, name, email, password, id = id):
+        self.id = str(uuid.uuid4())
+        # instead of an integer for user.id, makes a complex user.id
+        self.name = name
+        self.email = email
+        self.password = self.set_password(password)
+
+    def set_password(self, password):
+        self.pw_hash = generate_password_hash(password)
+        return self.pw_hash
+
+    def __repr__(self):
+        return f'{self.name} has been created successfully! Date: {self.date_created}'
