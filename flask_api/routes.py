@@ -10,11 +10,12 @@ import jwt
 
 from flask_api.forms import UserForm, LoginForm
 
-
+from flask_api.token_verification import token_required
 
 # Endpoint for Creating patients
 @app.route('/patients/create', methods = ['POST'])
-def create_patient():
+@token_required
+def create_patient(current_user_token):
     # here we are going to parse input from json style file
     # rather than a formas we did before
     name = request.json['full_name']
@@ -40,20 +41,23 @@ def create_patient():
 
 # Endpoint for ALL patients
 @app.route('/patients', methods = ['GET'])
-def get_patients():
+@token_required
+def get_patients(current_user_token):
     patients = Patient.query.all()
     return jsonify(patients_schema.dump(patients))
 
 # Endpoint for ONE patient based on their ID
 @app.route('/patients/<id>', methods = ['GET'])
-def get_patient(id):
+@token_required
+def get_patient(current_user_token, id):
     patient = Patient.query.get(id)
     results = patient_schema.dump(patient)
     return jsonify(results)
 
 # Endpoint for updating patient data
 @app.route('/patients/update/<id>', methods = ['POST', 'PUT'])
-def update_patients(id):
+@token_required
+def update_patients(current_user_token, id):
     patient = Patient.query.get(id)
 
     # Update info below
@@ -70,7 +74,8 @@ def update_patients(id):
 
 # Endpoint for deleting patient data
 @app.route('/patients/delete/<id>', methods = ['DELETE'])
-def delete_patients(id):
+@token_required
+def delete_patients(current_user_token, id):
     patient = Patient.query.get(id)
 
     db.session.delete(patient)
@@ -117,6 +122,7 @@ def get_key():
     #  as stated on jwt.io website, jwt's include encrypted data on 
     # algo type, payload (info about user who owns key), secret key
     token = jwt.encode({'public_id': current_user.id, 'email':current_user.email}, app.config['SECRET_KEY'])
+    user = User.query.get(current_user.id)
     user.token = token
     
     db.session.add(user)
@@ -124,3 +130,22 @@ def get_key():
 
     results = token.decode('utf-8')
     return render_template('token.html', token = results)
+
+# Get a new API key
+@app.route('/users/updatekey', methods = ['GET', 'POST', 'PUT'])
+def refresh_key():
+    refresh_key = {'refreshToken': jwt.encode({'public_id': current_user.id, \
+        'email': current_user.email}, app.config['SECRET_KEY'])}
+    temp = refresh_key.get('refreshToken')
+    new_token = temp.decode('utf-8')
+
+    # Adding refreshed token to DB
+    # user = User.query.get(current_user.id)
+    user = User.query.filter_by(email = current_user.email).first()
+    # .first()
+    user.token = new_token
+
+    db.session.add(user)
+    db.session.commit()
+
+    return render_template('token_refresh.html', new_token = new_token)

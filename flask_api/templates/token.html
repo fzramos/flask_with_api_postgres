@@ -3,8 +3,14 @@
 {% block content %}
 
     <div class="container">
-        <h1>Register!</h1>
-        
-    </div>
+        <h4>Your API KEY Below:</h4>
+        <textarea name="" id="" cols="30" rows="10">
+            {{ token }}
+        </textarea>
+        <!-- TODO: add refresh token button -->
+        <a href="{{ url_for('refresh_key') }}">
+            <button class="btn btn-success">Refresh Tokens</button>
+        </a>
+    </div> 
 
 {% endblock content %}
